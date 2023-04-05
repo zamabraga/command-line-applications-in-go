@@ -1,6 +1,8 @@
 package todo_test
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"pragprog.com/rggo/interacting/todo"
@@ -57,5 +59,36 @@ func TestDelete(t *testing.T) {
 
 	if len(l) != 2 {
 		t.Errorf("Expected list length %q, got %q instead", 2, len(l))
+	}
+}
+
+func TestSaveGet(t *testing.T) {
+	l1 := todo.List{}
+	l2 := todo.List{}
+
+	taskName := "New Task"
+	l1.Add(taskName)
+
+	if l1[0].Task != taskName {
+		t.Errorf("Expected %q, got %q instead.", taskName, l1[0].Task)
+	}
+
+	tf, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("Error creating temp file: %s", err)
+	}
+
+	defer os.Remove(tf.Name())
+
+	if err := l1.Save(tf.Name()); err != nil {
+		t.Fatalf("Error saving list to file: %s", err)
+	}
+
+	if err := l2.Get((tf.Name())); err != nil {
+		t.Fatalf("Error getting list from file: %s", err)
+	}
+
+	if l1[0].Task != l2[0].Task {
+		t.Errorf("Task %q should match %q task", l1[0].Task, l2[0].Task)
 	}
 }
