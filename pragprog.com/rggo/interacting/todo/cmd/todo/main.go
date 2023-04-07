@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"pragprog.com/rggo/interacting/todo"
 )
@@ -62,14 +61,16 @@ func main() {
 		}
 
 	case *add:
-		t, err := getTask(os.Stdin, flag.Args()...)
+		tasks, err := getTask(os.Stdin, flag.Args()...)
 
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 
-		l.Add(t)
+		for _, t := range tasks {
+			l.Add(t)
+		}
 
 		if err := l.Save(todoFileName); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -82,23 +83,30 @@ func main() {
 	}
 }
 
-func getTask(r io.Reader, args ...string) (string, error) {
+func getTask(r io.Reader, args ...string) ([]string, error) {
 
+	tasks := []string{}
+	// Concate os argumentos excedentes do -add
 	if len(args) > 0 {
-		return strings.Join(args, " "), nil
+		for _, arg := range args {
+			tasks = append(tasks, arg)
+		}
+		return tasks, nil
 	}
 
 	s := bufio.NewScanner(r)
-	s.Scan()
+	s.Split(bufio.ScanLines)
+	for s.Scan() {
 
-	if err := s.Err(); err != nil {
-		return "", err
+		if err := s.Err(); err != nil {
+			return []string{}, err
+		}
+
+		if len(s.Text()) == 0 {
+			return []string{}, fmt.Errorf("Task cannot be blank")
+		}
+		tasks = append(tasks, s.Text())
 	}
-
-	if len(s.Text()) == 0 {
-		return "", fmt.Errorf("Task cannot be blank")
-	}
-
-	return s.Text(), nil
+	return tasks, nil
 
 }
