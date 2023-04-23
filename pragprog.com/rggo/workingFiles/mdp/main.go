@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
+	"os/exec"
+	"runtime"
+	"time"
 
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
@@ -28,6 +31,7 @@ const (
 
 func main() {
 	filename := flag.String("file", "", "Mardkdown file to preview")
+	skipPreview := flag.Bool("s", false, "Skip auto-preview")
 	flag.Parse()
 
 	if *filename == "" {
@@ -35,13 +39,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := run(*filename); err != nil {
+	if err := run(*filename, os.Stdout, *skipPreview); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(filename string) error {
+func run(filename string, out io.Writer, skipPreview bool) error {
 	input, err := ioutil.ReadFile(filename)
 
 	if err != nil {
@@ -49,10 +53,31 @@ func run(filename string) error {
 	}
 
 	htmlData := parseContent(input)
-	outName := fmt.Sprintf("%s.html", filepath.Base(filename))
-	fmt.Println(outName)
+	temp, err := ioutil.TempFile("", "mdp*.html")
 
-	return saveHtml(outName, htmlData)
+	if err != nil {
+		return err
+	}
+
+	if err := temp.Close(); err != nil {
+		return err
+	}
+
+	outName := temp.Name()
+
+	fmt.Fprintln(out, outName)
+
+	if err := saveHtml(outName, htmlData); err != nil {
+		return err
+	}
+
+	if skipPreview {
+		return nil
+	}
+
+	defer os.Remove(outName)
+
+	return preview(outName)
 }
 
 func parseContent(input []byte) []byte {
@@ -67,4 +92,30 @@ func parseContent(input []byte) []byte {
 
 func saveHtml(outFname string, data []byte) error {
 	return ioutil.WriteFile(outFname, data, 0644)
+}
+
+func preview(fileName string) error {
+	cName := ""
+	cParams := []string{}
+	switch runtime.GOOS {
+	case "linux":
+		cName = "xdg-open"
+	case "windows":
+		cName = "cmd.exe"
+		cParams = []string{"/C", "start"}
+	case "darwin":
+		cName = "open"
+	default:
+		return fmt.Errorf("OS not supported")
+	}
+
+	cParams = append(cParams, fileName)
+	cPath, err := exec.LookPath(cName)
+	if err != nil {
+		return err
+	}
+
+	// Delay de 2s para renderizar o html antes de deletar o arquivo.
+	time.Sleep(2 * time.Second)
+	return exec.Command(cPath, cParams...).Run()
 }
