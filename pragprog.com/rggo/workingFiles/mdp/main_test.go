@@ -20,7 +20,12 @@ func TestParseContent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result := parseContent(input)
+	result, err := parseContent(input, "")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	expect, err := ioutil.ReadFile(goldenFile)
 
 	if err != nil {
@@ -38,7 +43,7 @@ func TestRun(t *testing.T) {
 
 	var mockStOut bytes.Buffer
 
-	if err := run(inputFile, &mockStOut, true); err != nil {
+	if err := run(inputFile, "", &mockStOut, true); err != nil {
 		t.Fatal(err)
 	}
 
