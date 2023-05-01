@@ -22,7 +22,7 @@ func main() {
 	list := flag.Bool("list", false, "List file only")
 	ext := flag.String("ext", "", "File extension to filter out")
 	size := flag.Int64("size", 0, "Minimum file size")
-	del := flag.Bool("dell", false, "Delete files")
+	del := flag.Bool("del", false, "Delete files")
 	logFile := flag.String("log", "value string", "Log deletes to this file")
 
 	flag.Parse()
